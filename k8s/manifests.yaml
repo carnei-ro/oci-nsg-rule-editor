@@ -1,0 +1,90 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: raspberry-ip
+data:
+  ipaddr: "0.0.0.0"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: oci-nsg-rule-editor
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: raspberry-ip-cm-updater
+rules:
+  - apiGroups: ['']
+    resources: [configmaps]
+    resourceNames: [raspberry-ip]
+    verbs: [update, get, patch]
+  - apiGroups: ['']
+    resources: [configmaps]
+    verbs: [list, create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: oci-nsg-rule-editor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: raspberry-ip-cm-updater
+subjects:
+  - kind: ServiceAccount
+    name: oci-nsg-rule-editor
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    maintainers: "leandro.carneiro"
+  labels:
+    app: oci-nsg-rule-editor
+  name: oci-nsg-rule-editor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oci-nsg-rule-editor
+  template:
+    metadata:
+      annotations:
+        maintainers: "leandro.carneiro"
+      labels:
+        app: oci-nsg-rule-editor
+    spec:
+      serviceAccount: oci-nsg-rule-editor
+      containers:
+        - name: oci-nsg-rule-editor
+          image: leandrocarneiro/nsg-rule-editor:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: OCI_CLI_AUTH
+              value: instance_principal
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "true"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "true"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: 250Mi
+              cpu: 100m
+            limits:
+              memory: 500Mi
+              cpu: 200m
+
