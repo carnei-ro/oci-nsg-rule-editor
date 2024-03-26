@@ -24,7 +24,7 @@ while sleep 60; do
   NEW_IP_ADDR=$(dig +short @8.8.8.8 A $FQDN)
 
   if [[ "${OLD_IP_ADDR}" != "${NEW_IP_ADDR}" ]]; then
-    oci network nsg rules list --nsg-id "${NSG_ID}" | jq '.data | walk(if type == "object" then del(."is-valid", ."time-created") else . end) | {securityRules: ., nsgId: "__NSG_ID__"} ' | sed -e "s|__NSG_ID__|${NSG_ID}|g" -e "s|${OLD_IP_ADDR}|${NEW_IP_ADDR}|g"  | tee /tmp/update.json && \
+    oci network nsg rules list --nsg-id "${NSG_ID}" | jq '.data | walk(if type == "object" then del(."is-valid", ."time-created") else . end) | {securityRules: ., nsgId: "__NSG_ID__"} ' | sed -e "s|__NSG_ID__|${NSG_ID}|g" -e "s|${OLD_IP_ADDR}|${NEW_IP_ADDR}|g" | jq 'walk( if type == "object" then with_entries(select(.value != null)) else . end)' | tee /tmp/update.json && \
     oci network nsg rules update --from-json file:///tmp/update.json && \
     curl -skX PATCH \
       -H "Authorization: Bearer $TOKEN" \
